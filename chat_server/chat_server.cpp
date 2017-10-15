@@ -17,12 +17,17 @@
 #define DEFAULT_BUFLEN 1024
 #define DEFAULT_PORT "15000"
 
+int my_init_socket();
+int my_create_socket();
+int my_bind(int serverSocket, const struct sockaddr* ai_addrESS, int ai_addrlenTH);
+int my_listen(int serverSocket);
+int my_accept(int serverSocket);
+int my_connection(int clientSocket);
+int my_shutdown(int clientSocket);
+void my_cleanup(int clientSocket);
+
 int iResult;
-struct SocketParams
-{
-	int serverSocket;
-	addrinfo *result;
-};
+addrinfo* myResult = NULL;	// global
 
 int my_init_socket()
 {
@@ -37,19 +42,6 @@ int my_init_socket()
 	}
 
 	return iResult;
-}
-
-addrinfo keep_the_result(addrinfo* result, int isItINPUTorOUTPUT)
-{
-	addrinfo theResult;
-
-	if (isItINPUTorOUTPUT) // 1 = input, we want to put data
-		theResult = *result;
-
-	else //if (!isItINPUTorOUTPUT) // 0 == output we need the data
-		;
-
-	return theResult;
 }
 
 int my_create_socket()
@@ -80,20 +72,23 @@ int my_create_socket()
 		return 1;
 	}
 
-	///////////////////////////////////////		bind	///////////////////
-	// Setup the TCP listening socket
-	iResult = bind(serverSocket, result->ai_addr, (int)result->ai_addrlen);
+	myResult = result; // make it global for other functions like 'bind' and 'freeaddrinfo(myResult)'
+	
+	return serverSocket;
+}
+
+// Setup the TCP listening socket
+int my_bind(int serverSocket, const struct sockaddr* ai_addrESS, int ai_addrlenTH)
+{
+	iResult = bind(serverSocket, ai_addrESS, ai_addrlenTH);
+
 	if (iResult == SOCKET_ERROR) {
 		printf("bind failed with error: %d\n", WSAGetLastError());
-		freeaddrinfo(result);
+		freeaddrinfo(myResult);
 		closesocket(serverSocket);
 		WSACleanup();
 		return 1;
-	} ////////////////////////////////// 	end of	bind	///////////////
-	
-	freeaddrinfo(result);
-	
-	return serverSocket;
+	}
 }
 
 int my_listen(int serverSocket)
@@ -106,7 +101,6 @@ int my_listen(int serverSocket)
 		return 1;
 	}
 }
-
 
 int my_accept(int serverSocket)
 {
@@ -182,6 +176,11 @@ int main()
 
 	int serverSocket = my_create_socket(); // create the socket and " bind " 
 	
+	//// bind //// Setup the TCP listening socket
+	iResult = my_bind(serverSocket, myResult->ai_addr, (int)myResult->ai_addrlen);
+
+	freeaddrinfo(myResult);
+
 	iResult = my_listen(serverSocket);
 
 	iResult = my_accept(serverSocket);
@@ -189,7 +188,7 @@ int main()
 	// No longer need server socket
 	closesocket(serverSocket);
 
-	SOCKET clientSocket = 111111111; // now try to	connect, snd, rsv ... (all is done in the my_connection func)
+	SOCKET clientSocket = 666; // now try to	connect, snd, rsv ... (all is done in the my_connection func)
 	
 	int my_connection(clientSocket);
 
