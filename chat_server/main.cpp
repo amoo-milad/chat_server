@@ -18,7 +18,7 @@
 #define DEFAULT_PORT "15000"
 
 int my_init_socket();
-int my_create_socket();
+int my_create_socket(const char* host, const char* port);
 int my_bind(int serverSocket, const struct sockaddr* ai_addrESS, int ai_addrlenTH);
 int my_listen(int serverSocket);
 int my_accept(int serverSocket);
@@ -27,7 +27,7 @@ int my_send(int clientSocket, char* recvbuf, int iResult, int zero);
 int my_shutdown(int clientSocket);
 int my_cleanup(int clientSocket);
 
-int theBindS(const char* host, int port); // Usage Func
+int theBindS(const char* host, const char* port); // Usage Func
 int theSendResvRelation(int clientSocket); // Usage Func
 
 int iResult = 0;
@@ -48,7 +48,7 @@ int my_init_socket()
 	return iResult;
 }
 
-int my_create_socket()
+int my_create_socket(const char* host, const char* port)
 {
 	addrinfo hints;
 	ZeroMemory(&hints, sizeof(hints));
@@ -59,7 +59,7 @@ int my_create_socket()
 
 	// Resolve the server address and port
 	addrinfo *result = NULL;
-	iResult = getaddrinfo("192.168.1.104", DEFAULT_PORT, &hints, &result); //e.g 192.168.1.104
+	iResult = getaddrinfo(host, port, &hints, &result); //e.g 192.168.1.104
 	if (iResult != 0) {
 		printf("getaddrinfo failed with error: %d\n", iResult);
 		WSACleanup();
@@ -149,14 +149,16 @@ int my_cleanup(int clientSocket)
 {
 	closesocket(clientSocket);
 	WSACleanup(); 
+
+	return 0;
 }
 
 //////////////////////////////////////// My Usage Functions: /////////////////////////////
-int theBindS(const char* host, int port) // Usage Func
+int theBindS(const char* host, const char* port) // Usage Func
 {
 	// i've dropped the first parameter(int serverSocket) because it was unnecessary.
 	int initResult = my_init_socket();
-	int serverSocket = my_create_socket();
+	int serverSocket = my_create_socket(host, port);
 	int bindResult = my_bind(serverSocket, myResult->ai_addr, (int)myResult->ai_addrlen); //or host and port?
 
 	printf("initResult is: %d and bindResult is: %d\n", initResult, bindResult);
@@ -200,7 +202,9 @@ int theSendResvRelation(int clientSocket) // Usage Func
 //////////////////////////////////////// main: /////////////////////////////
 int main()
 {
-	int serverSocket = theBindS("0.0.0.0", 15000); // my usage func
+	const char* myHost = "0.0.0.0";
+	const char* myPort = DEFAULT_PORT; // "15000"
+	int serverSocket = theBindS(myHost, myPort); // my usage func
 
 //	freeaddrinfo(myResult);  // why does it error when i uncomment it???
 
