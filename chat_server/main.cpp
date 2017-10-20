@@ -93,6 +93,8 @@ int my_bind(int serverSocket, const struct sockaddr* ai_addrESS, int ai_addrlenT
 		WSACleanup();
 		return 1;
 	}
+	
+	return iResult;
 }
 
 int my_listen(int serverSocket)
@@ -104,6 +106,8 @@ int my_listen(int serverSocket)
 		WSACleanup();
 		return 1;
 	}
+
+	return iResult;
 }
 
 int my_accept(int serverSocket)
@@ -117,6 +121,8 @@ int my_accept(int serverSocket)
 		WSACleanup();
 		return 1;
 	}
+
+	return iResult;
 }
 
 int my_recv(int clientSocket, char* recvbuf, int recvbuflen, int zero)
@@ -143,6 +149,8 @@ int my_shutdown(int clientSocket)
 		WSACleanup();
 		return 1;
 	}
+
+	return iResult;
 }
 
 int my_cleanup(int clientSocket)
@@ -197,6 +205,8 @@ int theSendResvRelation(int clientSocket) // Usage Func
 		}
 
 	} while (iResult > 0);
+
+	return iResult;
 }
 
 void check_result(int iResult, char* funcName)  // Usage Func
@@ -204,8 +214,11 @@ void check_result(int iResult, char* funcName)  // Usage Func
 	if (iResult == 0)
 		printf("check result: '%s'\t compeleted.\n", funcName);
 
-	else
+	else if(iResult == 1)
 		printf("check result: '%s'\t stoped!\n", funcName);
+
+	else
+		printf("check result: '%s'\t stoped by iResult: %d!\n", funcName, iResult);
 }
 
 //////////////////////////////////////// main: /////////////////////////////
@@ -217,7 +230,7 @@ int main()
 	const char* myPort = DEFAULT_PORT; // "15000"
 	int serverSocket = theBindS(myHost, myPort); // my usage func
 
-//	freeaddrinfo(myResult);  // why does it error when i uncomment it???
+	freeaddrinfo(myResult);  // why does it error when i uncomment it???
 
 	iResult = my_listen(serverSocket);
 	check_result(iResult, "Listen");
@@ -230,6 +243,7 @@ int main()
 
 	SOCKET clientSocket = 136;
 	
+	iResult = 0;
 	// now try to send and receive ...
 	iResult = theSendResvRelation(clientSocket); // my usage func
 	check_result(iResult, "SendResvRelation");
