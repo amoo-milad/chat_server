@@ -161,7 +161,7 @@ int theBindS(const char* host, const char* port) // Usage Func
 	int serverSocket = my_create_socket(host, port);
 	int bindResult = my_bind(serverSocket, myResult->ai_addr, (int)myResult->ai_addrlen); //or host and port?
 
-	printf("initResult is: %d and bindResult is: %d\n", initResult, bindResult);
+//	printf("initResult is: %d and bindResult is: %d\n", initResult, bindResult);
 	return serverSocket;
 }
 
@@ -199,9 +199,20 @@ int theSendResvRelation(int clientSocket) // Usage Func
 	} while (iResult > 0);
 }
 
+void check_result(int iResult, char* funcName)  // Usage Func
+{
+	if (iResult == 0)
+		printf("check result: '%s'\t compeleted.\n", funcName);
+
+	else
+		printf("check result: '%s'\t stoped!\n", funcName);
+}
+
 //////////////////////////////////////// main: /////////////////////////////
 int main()
 {
+	//char* funcName[20];
+
 	const char* myHost = "0.0.0.0";
 	const char* myPort = DEFAULT_PORT; // "15000"
 	int serverSocket = theBindS(myHost, myPort); // my usage func
@@ -209,19 +220,23 @@ int main()
 //	freeaddrinfo(myResult);  // why does it error when i uncomment it???
 
 	iResult = my_listen(serverSocket);
+	check_result(iResult, "Listen");
 
 	iResult = my_accept(serverSocket);
+	check_result(iResult, "Accept");
 
 	// No longer need server socket
 	closesocket(serverSocket);
 
-	SOCKET clientSocket = 666; 
+	SOCKET clientSocket = 136;
 	
 	// now try to send and receive ...
 	iResult = theSendResvRelation(clientSocket); // my usage func
+	check_result(iResult, "SendResvRelation");
 
 	// shutdown the connection since we're done
 	iResult = my_shutdown(clientSocket);
+	check_result(iResult, "Shutdown");
 
 	// cleanup
 	my_cleanup(clientSocket);
