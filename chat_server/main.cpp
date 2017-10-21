@@ -14,29 +14,27 @@
 #pragma comment (lib, "Ws2_32.lib")
 // #pragma comment (lib, "Mswsock.lib")
 
-#define DEFAULT_BUFLEN 1024
+#define DEFAULT_BUFLEN 256
 #define DEFAULT_PORT "15000"
 
 int my_init_socket();
-int my_create_socket(const char* host, const char* port);
-int my_bind(int serverSocket, const struct sockaddr* ai_addrESS, int ai_addrlenTH);
-int my_listen(int serverSocket);
-int my_accept(int serverSocket);
-int my_recv(int clientSocket, char* recvbuf, int recvbuflen, int zero);
-int my_send(int clientSocket, char* recvbuf, int iResult, int zero);
-int my_shutdown(int clientSocket);
-int my_cleanup(int clientSocket);
+int my_create_socket(const char* host, const char* port, SOCKET* serverSocket, addrinfo** myResult);
+int my_bind(SOCKET* serverSocket, const struct sockaddr* ai_addrESS, int ai_addrlenTH, addrinfo** myResult);
+int my_listen(SOCKET* serverSocket);
+int my_accept(SOCKET serverSocket, SOCKET* clientSocket);
+int my_recv(SOCKET clientSocket, char* recvbuf, int recvbuflen);
+int my_send(SOCKET clientSocket, char* sendbuf, int iResult);
+int my_shutdown(SOCKET clientSocket);
+int my_cleanup(SOCKET clientSocket);
 
-int theBindS(const char* host, const char* port); // Usage Func
-int theSendResvRelation(int clientSocket); // Usage Func
+SOCKET theBindS(const char* host, const char* port); // Usage Func
+int theSendResvRelation(SOCKET clientSocket); // Usage Func
 
 int iResult = 0;
-addrinfo* myResult = NULL;	// global
 
 int my_init_socket()
 {
 	WSADATA wsaData;
-	int iResult;
 
 	// Initialize Winsock
 	iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -48,7 +46,7 @@ int my_init_socket()
 	return iResult;
 }
 
-int my_create_socket(const char* host, const char* port)
+int my_create_socket(const char* host, const char* port, SOCKET* serverSocket, addrinfo** myResult)
 {
 	addrinfo hints;
 	ZeroMemory(&hints, sizeof(hints));
@@ -58,38 +56,35 @@ int my_create_socket(const char* host, const char* port)
 	hints.ai_flags = AI_PASSIVE;
 
 	// Resolve the server address and port
-	addrinfo *result = NULL;
-	iResult = getaddrinfo(host, port, &hints, &result); //e.g 192.168.1.104
+
+	iResult = getaddrinfo(host, port, &hints, myResult); //e.g 192.168.1.104
 	if (iResult != 0) {
 		printf("getaddrinfo failed with error: %d\n", iResult);
 		WSACleanup();
 		return 1;
 	}
 
-	SOCKET serverSocket = INVALID_SOCKET;
 	// Create a SOCKET for connecting to server
-	serverSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-	if (serverSocket == INVALID_SOCKET) {
+	*serverSocket = socket((*myResult)->ai_family, (*myResult)->ai_socktype, (*myResult)->ai_protocol);
+	if (*serverSocket == INVALID_SOCKET) {
 		printf("socket failed with error: %ld\n", WSAGetLastError());
-		freeaddrinfo(result);
+		freeaddrinfo(*myResult);
 		WSACleanup();
 		return 1;
 	}
 
-	myResult = result; // made it global for other functions like 'bind' and 'freeaddrinfo(myResult)'
-	
-	return serverSocket;
+	return 0;
 }
 
 // Setup the TCP listening socket
-int my_bind(int serverSocket, const struct sockaddr* ai_addrESS, int ai_addrlenTH)
+int my_bind(SOCKET* serverSocket, const struct sockaddr* ai_addrESS, int ai_addrlenTH, addrinfo** myResult)
 {
-	iResult = bind(serverSocket, ai_addrESS, ai_addrlenTH);
+	iResult = bind(*serverSocket, ai_addrESS, ai_addrlenTH);
 
 	if (iResult == SOCKET_ERROR) {
 		printf("bind failed with error: %d\n", WSAGetLastError());
-		freeaddrinfo(myResult);
-		closesocket(serverSocket);
+		freeaddrinfo(*myResult);
+		closesocket(*serverSocket);
 		WSACleanup();
 		return 1;
 	}
@@ -97,12 +92,12 @@ int my_bind(int serverSocket, const struct sockaddr* ai_addrESS, int ai_addrlenT
 	return iResult;
 }
 
-int my_listen(int serverSocket)
+int my_listen(SOCKET* serverSocket)
 {
-	iResult = listen(serverSocket, SOMAXCONN);
+	iResult = listen(*serverSocket, SOMAXCONN);
 	if (iResult == SOCKET_ERROR) {
 		printf("listen failed with error: %d\n", WSAGetLastError());
-		closesocket(serverSocket);
+		closesocket(*serverSocket);
 		WSACleanup();
 		return 1;
 	}
@@ -110,12 +105,12 @@ int my_listen(int serverSocket)
 	return iResult;
 }
 
-int my_accept(int serverSocket)
+int my_accept(SOCKET serverSocket, SOCKET* clientSocket)
 {
 	// Accept a client socket
-	SOCKET clientSocket = INVALID_SOCKET;
-	clientSocket = accept(serverSocket, NULL, NULL);
-	if (clientSocket == INVALID_SOCKET) {
+	//SOCKET clientSocket = INVALID_SOCKET;
+	*clientSocket = accept(serverSocket, NULL, NULL);
+	if (*clientSocket == INVALID_SOCKET) {
 		printf("accept failed with error: %d\n", WSAGetLastError());
 		closesocket(serverSocket);
 		WSACleanup();
@@ -125,21 +120,21 @@ int my_accept(int serverSocket)
 	return iResult;
 }
 
-int my_recv(int clientSocket, char* recvbuf, int recvbuflen, int zero)
+int my_recv(SOCKET clientSocket, char* recvbuf, int recvbuflen)
 {
-	iResult = recv(clientSocket, recvbuf, recvbuflen, zero);
+	iResult = recv(clientSocket, recvbuf, recvbuflen, 0);
 	
 	return iResult;
 }
 
-int my_send(int clientSocket, char* recvbuf, int iResult, int zero)
+int my_send(SOCKET clientSocket, char* sendbuf, int iResult)
 {
-	int iSendResult = send(clientSocket, recvbuf, iResult, zero);
+	int iSendResult = send(clientSocket, sendbuf, iResult, 0);
 
 	return iSendResult;
 }
 
-int my_shutdown(int clientSocket)
+int my_shutdown(SOCKET clientSocket)
 {
 	// shutdown the connection since we're done
 	iResult = shutdown(clientSocket, SD_SEND);
@@ -153,7 +148,7 @@ int my_shutdown(int clientSocket)
 	return iResult;
 }
 
-int my_cleanup(int clientSocket)
+int my_cleanup(SOCKET clientSocket)
 {
 	closesocket(clientSocket);
 	WSACleanup(); 
@@ -162,31 +157,46 @@ int my_cleanup(int clientSocket)
 }
 
 //////////////////////////////////////// My Usage Functions: /////////////////////////////
-int theBindS(const char* host, const char* port) // Usage Func
+SOCKET theBindS(const char* host, const char* port) // Usage Func
 {
-	// i've dropped the first parameter(int serverSocket) because it was unnecessary.
-	int initResult = my_init_socket();
-	int serverSocket = my_create_socket(host, port);
-	int bindResult = my_bind(serverSocket, myResult->ai_addr, (int)myResult->ai_addrlen); //or host and port?
+	SOCKET serverSocket = INVALID_SOCKET;
+	addrinfo* myResult = NULL;
 
-//	printf("initResult is: %d and bindResult is: %d\n", initResult, bindResult);
+	int initResult = my_init_socket();
+	int createResult = my_create_socket(host, port, &serverSocket, &myResult);
+	int bindResult = my_bind(&serverSocket, myResult->ai_addr, (int)myResult->ai_addrlen, &myResult);
+
+	if (initResult == 0 && createResult == 0 && bindResult == 0)
+		printf_s("theBindS compeleted!\n");
+	else
+	{
+		printf_s("theBindS Failed!\n");
+		printf_s("\t initResult   is: %d \n", initResult);
+		printf_s("\t createResult is: %d \n",createResult);
+		printf_s("\t bindResult   is: %d \n", bindResult);
+	}
+
+	freeaddrinfo(myResult);
 	return serverSocket;
 }
 
-int theSendResvRelation(int clientSocket) // Usage Func
+int theSendResvRelation(SOCKET clientSocket) // Usage Func
 {
 	int iSendResult;
 	char recvbuf[DEFAULT_BUFLEN];
-	int recvbuflen = DEFAULT_BUFLEN;
+	///int recvbuflen = DEFAULT_BUFLEN;
+	char sendbuf[DEFAULT_BUFLEN] = "helloooooooo";
 
 	// Receive until the peer shuts down the connection
 	do {
-		iResult = my_recv(clientSocket, recvbuf, recvbuflen, 0);
+		iResult = my_recv(clientSocket, recvbuf, (int)strlen(recvbuf));
 		if (iResult > 0) {
-			printf("Bytes received: %d\n", iResult);
+			printf("\nBytes received: %d, which is %s\n", iResult, recvbuf);
 
 			// Echo the buffer back to the sender
-			iSendResult = my_send(clientSocket, "Salam", iResult, 0);
+			///char* s1 = "Hellooooooooo ";
+			///strcat(s1, recvbuf);
+			iSendResult = my_send(clientSocket, sendbuf, (int)strlen(sendbuf));
 			if (iSendResult == SOCKET_ERROR) {
 				printf("send failed with error: %d\n", WSAGetLastError());
 				closesocket(clientSocket);
@@ -228,22 +238,18 @@ int main()
 
 	const char* myHost = "0.0.0.0";
 	const char* myPort = DEFAULT_PORT; // "15000"
-	int serverSocket = theBindS(myHost, myPort); // my usage func
+	SOCKET serverSocket = theBindS(myHost, myPort); // my usage func
 
-	freeaddrinfo(myResult);  // why does it error when i uncomment it???
-
-	iResult = my_listen(serverSocket);
+	iResult = my_listen(&serverSocket);
 	check_result(iResult, "Listen");
 
-	iResult = my_accept(serverSocket);
+	SOCKET clientSocket = INVALID_SOCKET;
+	iResult = my_accept(serverSocket, &clientSocket);
 	check_result(iResult, "Accept");
 
 	// No longer need server socket
 	closesocket(serverSocket);
 
-	SOCKET clientSocket = 136;
-	
-	iResult = 0;
 	// now try to send and receive ...
 	iResult = theSendResvRelation(clientSocket); // my usage func
 	check_result(iResult, "SendResvRelation");
